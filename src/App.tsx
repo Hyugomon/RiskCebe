@@ -21,10 +21,9 @@ function AppContent() {
     );
   }
 
-  // Acceso directo sin autenticación
-  // if (!user) {
-  //   return <Login />;
-  // }
+  if (!user) {
+    return <Login />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {

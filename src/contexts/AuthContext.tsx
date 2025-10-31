@@ -14,37 +14,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>({
-    id: 'demo-user-id',
-    email: 'demo@cebe.edu.pe',
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: new Date().toISOString(),
-  } as User);
-  const [session, setSession] = useState<Session | null>({
-    access_token: 'demo-token',
-    refresh_token: 'demo-refresh-token',
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    token_type: 'bearer',
-    user: {
-      id: 'demo-user-id',
-      email: 'demo@cebe.edu.pe',
-      app_metadata: {},
-      user_metadata: {},
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as User,
-  } as Session);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simular carga completada inmediatamente
-    setLoading(false);
-    
-    // Deshabilitar la autenticación real con Supabase
-    /*
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -59,14 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-    */
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Simular inicio de sesión exitoso sin conectar a Supabase
-      console.log('Login simulado para:', email);
-      return { error: null };
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
     } catch (error) {
       return { error: error as Error };
     }
@@ -74,17 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      // Simular registro exitoso sin conectar a Supabase
-      console.log('Registro simulado para:', email);
-      return { error: null };
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      return { error };
     } catch (error) {
       return { error: error as Error };
     }
   };
 
   const signOut = async () => {
-    // Simular cierre de sesión sin conectar a Supabase
-    console.log('Logout simulado');
+    await supabase.auth.signOut();
   };
 
   return (
