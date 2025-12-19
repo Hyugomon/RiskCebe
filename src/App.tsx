@@ -6,8 +6,10 @@ import { Dashboard } from './components/Dashboard';
 import { Assets } from './components/Assets';
 import { Diagnostic } from './components/Diagnostic';
 import { RiskPlan } from './components/RiskPlan';
+import { RiskWizard } from './components/RiskWizard';
+import { Schedules } from './components/Schedules';
 
-type Page = 'dashboard' | 'assets' | 'diagnostic' | 'risks';
+type Page = 'dashboard' | 'assets' | 'diagnostic' | 'risks' | 'wizard' | 'schedules';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -35,6 +37,10 @@ function AppContent() {
         return <Diagnostic />;
       case 'risks':
         return <RiskPlan />;
+      case 'wizard':
+        return <RiskWizard />;
+      case 'schedules':
+        return <Schedules />;
       default:
         return <Dashboard />;
     }

@@ -14,6 +14,8 @@ export interface Asset {
   average_value: number;
   created_at: string;
   updated_at: string;
+  evidence?: string;
+  ai_analysis?: any;
 }
 
 export interface Threat {
@@ -34,6 +36,8 @@ export interface Risk {
   status: RiskStatus;
   created_at: string;
   updated_at: string;
+  evidence?: string;
+  ai_analysis?: any;
 }
 
 export interface TreatmentPlan {
@@ -44,8 +48,14 @@ export interface TreatmentPlan {
   risk_owner: string;
   timeline: string;
   implementation_status: ImplementationStatus;
+  residual_probability_level?: number;
+  residual_impact_level?: number;
+  residual_risk_total?: number;
+  residual_risk_zone?: RiskZone;
   created_at: string;
   updated_at: string;
+  evidence?: string;
+  ai_analysis?: any;
 }
 
 export interface RiskWithDetails extends Risk {
@@ -61,6 +71,7 @@ export interface CreateAsset {
   confidentiality_value: number;
   integrity_value: number;
   availability_value: number;
+  evidence?: string;
 }
 
 export interface CreateRisk {
@@ -78,6 +89,11 @@ export interface CreateTreatmentPlan {
   risk_owner: string;
   timeline: string;
   implementation_status?: ImplementationStatus;
+  residual_probability_level?: number;
+  residual_impact_level?: number;
+  residual_risk_total?: number;
+  residual_risk_zone?: RiskZone;
+  evidence?: string;
 }
 
 export const DOMAIN_LABELS: Record<AssetDomain, string> = {

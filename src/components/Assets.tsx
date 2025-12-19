@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Brain, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Asset, CreateAsset, AssetDomain, DOMAIN_LABELS } from '../types/database';
+import { aiSpecialist } from '../services/aiSpecialist';
 
 export function Assets() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState<string>('');
   const [formData, setFormData] = useState<CreateAsset>({
     name: '',
     owner: '',
@@ -15,6 +18,7 @@ export function Assets() {
     confidentiality_value: 3,
     integrity_value: 3,
     availability_value: 3,
+    evidence: '',
   });
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export function Assets() {
   };
 
   const openModal = (asset?: Asset) => {
+    setAiReasoning(asset?.evidence || '');
     if (asset) {
       setEditingAsset(asset);
       setFormData({
@@ -87,6 +92,7 @@ export function Assets() {
         confidentiality_value: 3,
         integrity_value: 3,
         availability_value: 3,
+        evidence: '',
       });
     }
     setShowModal(true);
@@ -95,6 +101,33 @@ export function Assets() {
   const closeModal = () => {
     setShowModal(false);
     setEditingAsset(null);
+  };
+
+  const handleAIDiagnosis = async () => {
+    if (!formData.name || !formData.domain || !formData.owner) {
+      alert("Por favor complete Nombre, Propietario y Dominio antes de solicitar el diagnóstico.");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const result = await aiSpecialist.diagnoseAsset({
+        name: formData.name,
+        domain: formData.domain,
+        owner: formData.owner,
+      });
+      setFormData({
+        ...formData,
+        confidentiality_value: result.confidentiality_value,
+        integrity_value: result.integrity_value,
+        availability_value: result.availability_value,
+        evidence: result.reasoning
+      });
+      setAiReasoning(result.reasoning);
+    } catch (e) {
+      alert("Error al conectar con el especialista IA.");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   if (loading) {
@@ -261,9 +294,20 @@ export function Assets() {
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-3">
-                    Valoración CIA (1-5)
-                  </p>
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="text-sm font-medium text-slate-700">
+                      Valoración CIA (1-5)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleAIDiagnosis}
+                      disabled={aiLoading}
+                      className="flex items-center gap-2 text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+                    >
+                      {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+                      Autodiagnóstico IA
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs text-slate-600 mb-2">
@@ -319,6 +363,18 @@ export function Assets() {
                       />
                     </div>
                   </div>
+
+                  {aiReasoning && (
+                    <div className="mt-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <div className="flex gap-2 mb-1">
+                        <Brain className="w-4 h-4 text-slate-500" />
+                        <span className="text-xs font-semibold text-slate-700">Evidencia del Especialista IA</span>
+                      </div>
+                      <p className="text-sm text-slate-600 italic whitespace-pre-wrap">
+                        "{aiReasoning}"
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">

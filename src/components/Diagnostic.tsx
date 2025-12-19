@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { aiSpecialist } from '../services/aiSpecialist';
 import {
   Asset,
   Threat,
@@ -32,6 +33,7 @@ export function Diagnostic() {
   const [selectedThreats, setSelectedThreats] = useState<ThreatSelection[]>([]);
   const [riskEvaluations, setRiskEvaluations] = useState<RiskEvaluation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
@@ -85,17 +87,69 @@ export function Diagnostic() {
     setSelectedThreats(updated);
   };
 
-  const initializeRiskEvaluations = () => {
-    const evaluations: RiskEvaluation[] = selectedThreats
-      .filter((st) => st.selected)
-      .map((st) => ({
-        threat_id: st.threat.id,
-        threat_name: st.threat.name,
-        impact_level: 3,
-        probability_level: 3,
+  const handleAIAutoDetect = async () => {
+    if (!selectedAsset) return;
+    setAiLoading(true);
+    try {
+      const threatNames = threats.map(t => t.name);
+      const evaluations = await aiSpecialist.assessRisks(selectedAsset, threatNames);
+
+
+
+      // BETTER APPROACH: Reset selection to AI suggestion? Or Validation?
+      // User wants AI to "take decision". So we prioritize AI.
+      const newSelection = selectedThreats.map(st => ({
+        ...st,
+        selected: evaluations.some(e => e.threat_name === st.threat.name)
       }));
 
-    setRiskEvaluations(evaluations);
+      setSelectedThreats(newSelection);
+
+      // Prepare evaluations map for next step
+      const newEvaluations: RiskEvaluation[] = newSelection
+        .filter(st => st.selected)
+        .map(st => {
+          const aiEval = evaluations.find(e => e.threat_name === st.threat.name);
+          return {
+            threat_id: st.threat.id,
+            threat_name: st.threat.name,
+            impact_level: aiEval?.impact_level || 3,
+            probability_level: aiEval?.probability_level || 3
+          };
+        });
+
+      setRiskEvaluations(newEvaluations);
+
+      // Auto-advance if successful? No, let user review.
+      alert(`IA detectó ${evaluations.length} amenazas relevantes.`);
+
+    } catch (e) {
+      console.error(e);
+      alert('Error consultando a la IA');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const initializeRiskEvaluations = () => {
+    // Merge existing auto-generated evaluations with current selection
+    const currentSelectionIds = selectedThreats.filter(st => st.selected).map(st => st.threat.id);
+
+    // Filter out evaluations for threats that are no longer selected
+    let evaluations = riskEvaluations.filter(re => currentSelectionIds.includes(re.threat_id));
+
+    // Add new evaluations for selected threats that don't have one yet
+    const missingThreats = selectedThreats
+      .filter(st => st.selected && !evaluations.some(re => re.threat_id === st.threat.id));
+
+    const newEvaluations = missingThreats.map(st => ({
+      threat_id: st.threat.id,
+      threat_name: st.threat.name,
+      impact_level: 3,
+      probability_level: 3
+    }));
+
+    setRiskEvaluations([...evaluations, ...newEvaluations]);
   };
 
   const updateRiskEvaluation = (
@@ -126,25 +180,29 @@ export function Diagnostic() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedAsset) return;
+    if (!selectedAsset || loading) return; // Prevent duplicate submission
 
     setLoading(true);
 
-    const risksToCreate: CreateRisk[] = riskEvaluations.map((evaluation) => ({
-      asset_id: selectedAsset.id,
-      threat_id: evaluation.threat_id,
-      impact_level: evaluation.impact_level,
-      probability_level: evaluation.probability_level,
-      status: 'Identificado',
-    }));
+    try {
+      const risksToCreate: CreateRisk[] = riskEvaluations.map((evaluation) => ({
+        asset_id: selectedAsset.id,
+        threat_id: evaluation.threat_id,
+        impact_level: evaluation.impact_level,
+        probability_level: evaluation.probability_level,
+        status: 'Identificado',
+      }));
 
-    const { error } = await supabase.from('risks').insert(risksToCreate);
+      const { error } = await supabase.from('risks').insert(risksToCreate);
 
-    if (!error) {
+      if (error) throw error;
       setCompleted(true);
+    } catch (e) {
+      console.error(e);
+      alert('Error guardando diagnóstico.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const resetWizard = () => {
@@ -157,7 +215,7 @@ export function Diagnostic() {
 
   if (completed) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto animate-fadeIn">
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
           <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -186,19 +244,17 @@ export function Diagnostic() {
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center flex-1">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                  step >= s
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-200 text-slate-500'
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${step >= s
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-200 text-slate-500'
+                  }`}
               >
                 {s}
               </div>
               {s < 3 && (
                 <div
-                  className={`flex-1 h-1 mx-2 ${
-                    step > s ? 'bg-slate-900' : 'bg-slate-200'
-                  }`}
+                  className={`flex-1 h-1 mx-2 transition-colors ${step > s ? 'bg-slate-900' : 'bg-slate-200'
+                    }`}
                 />
               )}
             </div>
@@ -212,10 +268,10 @@ export function Diagnostic() {
       </div>
 
       {/* Step content */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-6 min-h-[500px]">
         {/* Step 1: Asset Selection */}
         {step === 1 && (
-          <div>
+          <div className="animate-fadeIn">
             <h3 className="text-xl font-bold text-slate-900 mb-4">
               Paso 1: Seleccione un Activo
             </h3>
@@ -227,11 +283,10 @@ export function Diagnostic() {
                 <button
                   key={asset.id}
                   onClick={() => handleAssetSelect(asset)}
-                  className={`text-left p-4 rounded-lg border-2 transition-colors ${
-                    selectedAsset?.id === asset.id
-                      ? 'border-slate-900 bg-slate-50'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`text-left p-4 rounded-lg border-2 transition-colors ${selectedAsset?.id === asset.id
+                    ? 'border-slate-900 bg-slate-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <div className="font-medium text-slate-900">{asset.name}</div>
                   <div className="text-sm text-slate-600 mt-1">
@@ -246,10 +301,21 @@ export function Diagnostic() {
 
         {/* Step 2: Threat Identification */}
         {step === 2 && selectedAsset && (
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 mb-4">
-              Paso 2: Identificar Amenazas
-            </h3>
+          <div className="animate-fadeIn">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-slate-900">
+                Paso 2: Identificar Amenazas
+              </h3>
+              <button
+                onClick={handleAIAutoDetect}
+                disabled={aiLoading}
+                className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full hover:bg-indigo-100 border border-indigo-200 transition-colors"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                Auto-Detectar con IA
+              </button>
+            </div>
+
             <p className="text-slate-600 mb-2">
               Activo seleccionado: <strong>{selectedAsset.name}</strong>
             </p>
@@ -261,7 +327,7 @@ export function Diagnostic() {
               {selectedThreats.map((st, index) => (
                 <label
                   key={st.threat.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${st.selected ? 'bg-slate-50 border-slate-400' : 'border-slate-200 hover:bg-slate-50'}`}
                 >
                   <input
                     type="checkbox"
@@ -285,16 +351,17 @@ export function Diagnostic() {
 
         {/* Step 3: Risk Evaluation */}
         {step === 3 && (
-          <div>
+          <div className="animate-fadeIn">
             <h3 className="text-xl font-bold text-slate-900 mb-4">
               Paso 3: Evaluar Riesgo
             </h3>
             <p className="text-slate-600 mb-6">
-              Para cada amenaza, evalúe el nivel de impacto y probabilidad
+              Para cada amenaza, evalúe el nivel de impacto y probabilidad.
+              {riskEvaluations.some(r => r.impact_level > 0) && <span className="text-indigo-600 ml-2 font-medium">(Pre-llenado por IA)</span>}
             </p>
             <div className="space-y-6 max-h-96 overflow-y-auto">
               {riskEvaluations.map((evaluation, index) => (
-                <div key={evaluation.threat_id} className="p-4 border border-slate-200 rounded-lg">
+                <div key={evaluation.threat_id} className="p-4 border border-slate-200 rounded-lg bg-white shadow-sm">
                   <h4 className="font-medium text-slate-900 mb-4">{evaluation.threat_name}</h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
@@ -371,8 +438,9 @@ export function Diagnostic() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {loading ? 'Guardando...' : 'Finalizar Diagnóstico'}
             </button>
           )}

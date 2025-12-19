@@ -1,11 +1,11 @@
 import { ReactNode, useState } from 'react';
-import { LayoutDashboard, Package, ClipboardList, Shield, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, Shield, LogOut, Menu, X, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
-  currentPage: 'dashboard' | 'assets' | 'diagnostic' | 'risks';
-  onNavigate: (page: 'dashboard' | 'assets' | 'diagnostic' | 'risks') => void;
+  currentPage: 'dashboard' | 'assets' | 'diagnostic' | 'risks' | 'wizard' | 'schedules';
+  onNavigate: (page: 'dashboard' | 'assets' | 'diagnostic' | 'risks' | 'wizard' | 'schedules') => void;
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -17,15 +17,15 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'assets' as const, label: 'Activos', icon: Package },
     { id: 'diagnostic' as const, label: 'Diagnóstico', icon: ClipboardList },
     { id: 'risks' as const, label: 'Plan de Riesgos', icon: Shield },
+    { id: 'schedules' as const, label: 'Cronograma', icon: Calendar },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-screen transition-transform ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } bg-slate-900 w-64`}
+        className={`fixed top-0 left-0 z-40 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } bg-slate-900 w-64`}
       >
         <div className="h-full flex flex-col">
           {/* Header */}
@@ -57,11 +57,10 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                     onNavigate(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>

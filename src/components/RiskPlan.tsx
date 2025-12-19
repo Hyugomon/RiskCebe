@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, Brain, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { aiSpecialist } from '../services/aiSpecialist';
 import {
   RiskWithDetails,
-  TreatmentPlan,
   CreateTreatmentPlan,
   RiskZone,
   RISK_ZONE_LABELS,
   RISK_ZONE_COLORS,
-  IMPACT_LABELS,
-  PROBABILITY_LABELS,
   ImplementationStatus,
 } from '../types/database';
 
@@ -19,6 +17,8 @@ export function RiskPlan() {
   const [filterZone, setFilterZone] = useState<RiskZone | 'all'>('all');
   const [showModal, setShowModal] = useState(false);
   const [selectedRisk, setSelectedRisk] = useState<RiskWithDetails | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiEvidence, setAiEvidence] = useState('');
   const [formData, setFormData] = useState<CreateTreatmentPlan>({
     risk_id: '',
     safeguards: '',
@@ -26,6 +26,7 @@ export function RiskPlan() {
     risk_owner: '',
     timeline: '',
     implementation_status: 'Pendiente',
+    evidence: '',
   });
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export function RiskPlan() {
 
   const openModal = (risk: RiskWithDetails) => {
     setSelectedRisk(risk);
+    setAiEvidence(risk.treatment_plan?.evidence || '');
 
     if (risk.treatment_plan) {
       setFormData({
@@ -83,6 +85,7 @@ export function RiskPlan() {
         risk_owner: '',
         timeline: '',
         implementation_status: 'Pendiente',
+        evidence: '',
       });
     }
 
@@ -92,6 +95,32 @@ export function RiskPlan() {
   const closeModal = () => {
     setShowModal(false);
     setSelectedRisk(null);
+  };
+
+  const handleAIGeneratePlan = async () => {
+    if (!selectedRisk) return;
+    setAiLoading(true);
+    try {
+      const result = await aiSpecialist.generateRiskPlan({
+        asset_name: selectedRisk.asset.name,
+        threat_name: selectedRisk.threat.name,
+        threat_description: selectedRisk.threat.description,
+        impact_level: selectedRisk.impact_level,
+        probability_level: selectedRisk.probability_level
+      });
+
+      setFormData({
+        ...formData,
+        safeguards: result.safeguards,
+        iso_27002_controls: result.iso_controls,
+        evidence: result.reasoning
+      });
+      setAiEvidence(result.reasoning);
+    } catch (e) {
+      alert("Error generating plan with AI");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,6 +135,7 @@ export function RiskPlan() {
           risk_owner: formData.risk_owner,
           timeline: formData.timeline,
           implementation_status: formData.implementation_status,
+          evidence: formData.evidence
         })
         .eq('id', selectedRisk.treatment_plan.id);
 
@@ -200,11 +230,10 @@ export function RiskPlan() {
       <div className="flex gap-2">
         <button
           onClick={() => setFilterZone('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filterZone === 'all'
-              ? 'bg-slate-900 text-white'
-              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterZone === 'all'
+            ? 'bg-slate-900 text-white'
+            : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+            }`}
         >
           Todos ({risks.length})
         </button>
@@ -212,11 +241,10 @@ export function RiskPlan() {
           <button
             key={zone}
             onClick={() => setFilterZone(zone)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filterZone === zone
-                ? 'text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterZone === zone
+              ? 'text-white'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
             style={{
               backgroundColor: filterZone === zone ? RISK_ZONE_COLORS[zone] : undefined,
             }}
@@ -285,13 +313,12 @@ export function RiskPlan() {
                   <td className="px-6 py-4 text-center">
                     {risk.treatment_plan ? (
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          risk.treatment_plan.implementation_status === 'Implementado'
-                            ? 'bg-green-100 text-green-800'
-                            : risk.treatment_plan.implementation_status === 'En Progreso'
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${risk.treatment_plan.implementation_status === 'Implementado'
+                          ? 'bg-green-100 text-green-800'
+                          : risk.treatment_plan.implementation_status === 'En Progreso'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-slate-100 text-slate-800'
-                        }`}
+                          }`}
                       >
                         {risk.treatment_plan.implementation_status}
                       </span>
@@ -348,9 +375,20 @@ export function RiskPlan() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Salvaguardas / Controles a Implementar
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Salvaguardas / Controles a Implementar
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAIGeneratePlan}
+                      disabled={aiLoading}
+                      className="flex items-center gap-2 text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+                    >
+                      {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+                      Sugerir con IA
+                    </button>
+                  </div>
                   <textarea
                     value={formData.safeguards}
                     onChange={(e) => setFormData({ ...formData, safeguards: e.target.value })}
@@ -438,6 +476,18 @@ export function RiskPlan() {
                     {selectedRisk.treatment_plan ? 'Actualizar Plan' : 'Crear Plan'}
                   </button>
                 </div>
+
+                {aiEvidence && (
+                  <div className="mt-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="flex gap-2 mb-1">
+                      <Brain className="w-4 h-4 text-slate-500" />
+                      <span className="text-xs font-semibold text-slate-700">Evidencia del Especialista IA</span>
+                    </div>
+                    <p className="text-sm text-slate-600 italic whitespace-pre-wrap">
+                      "{aiEvidence}"
+                    </p>
+                  </div>
+                )}
               </form>
             </div>
           </div>
