@@ -11,7 +11,9 @@ Sistema web full-stack para la gestión automatizada de riesgos de cibersegurida
   - Paso 3: Evaluación de impacto y probabilidad
 - **Plan de Tratamiento de Riesgos**: Gestión de controles con clasificación por zona de riesgo
 - **Dashboard Analítico**: Visualizaciones y estadísticas en tiempo real
+- **Coordinación y Cronograma**: Gestión de auditorías, actividades con Dirección Educativa y seguimiento de planes
 - **Exportación CSV**: Generación de reportes de riesgos
+- **Asistente de IA (Gemini)**: Diagnóstico automático de activos y generación de planes de tratamiento
 - **Sistema de Autenticación**: Control de acceso basado en roles
 
 ## Tecnologías Utilizadas
@@ -21,6 +23,7 @@ Sistema web full-stack para la gestión automatizada de riesgos de cibersegurida
 - Vite como build tool
 - Tailwind CSS para estilos
 - Lucide React para iconos
+- Google Generative AI SDK
 
 ### Backend
 - Supabase (PostgreSQL)
@@ -108,7 +111,9 @@ project/
 │   │   ├── Diagnostic.tsx # Wizard de diagnóstico
 │   │   ├── Layout.tsx     # Layout principal con navegación
 │   │   ├── Login.tsx      # Página de login
-│   │   └── RiskPlan.tsx   # Módulo de planes de tratamiento
+│   │   ├── RiskPlan.tsx   # Módulo de planes de tratamiento
+│   │   ├── Schedules.tsx  # Módulo de coordinación y cronograma
+│   │   └── RiskWizard.tsx # Asistente de gestión de riesgos con IA
 │   ├── contexts/
 │   │   └── AuthContext.tsx # Contexto de autenticación
 │   ├── lib/
@@ -149,6 +154,12 @@ project/
 - Dueño del riesgo y timeline
 - Estado: Pendiente, En Progreso, Implementado
 
+### Schedules (Cronograma)
+- Gestión de actividades y auditorías
+- Estados: Pendiente, Coordinado, Realizado, Cancelado
+- Vinculación opcional con Planes de Tratamiento (auto-completado de contexto)
+- Notas de coordinación con Dirección Educativa
+
 ## Lógica de Negocio
 
 ### Matriz de Riesgo
@@ -177,6 +188,19 @@ El sistema sugiere amenazas según el dominio del activo:
 4. **Tratamiento**: Crear planes para riesgos Extremos y Altos
 5. **Seguimiento**: Actualizar estado de implementación
 6. **Análisis**: Monitorear progreso en el Dashboard
+
+## Capacidades de IA
+
+El sistema integra un especialista en ciberseguridad virtual impulsado por IA (Google Gemini) que asiste en:
+
+### 1. Diagnóstico de Activos
+Analiza el nombre, dominio y propietario del activo para determinar automáticamente los valores CIA (Confidencialidad, Integridad, Disponibilidad) y justifica su decisión.
+
+### 2. Evaluación de Riesgos
+Identifica qué amenazas del catálogo son relevantes para un activo específico, estimando impacto y probabilidad.
+
+### 3. Generación de Planes de Tratamiento
+Propone salvaguardas técnicas y administrativas específicas, incluyendo mapeo automático a controles ISO 27002.
 
 ## Scripts Disponibles
 
